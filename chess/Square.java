@@ -8,6 +8,8 @@ package chess;
 public class Square {
 	protected int[] location;
 	
+	protected Piece piece;
+	
 	// TODO Figure out powerups
 	
 	// Setters and getters
@@ -19,14 +21,27 @@ public class Square {
 		return this.location;
 	}
 	
+	void setPiece(Piece piece) {
+		this.piece = piece;
+	}
+	
+	Piece getPiece() {
+		return this.piece;
+	}
+	
 	// Static methods
 	/**
 	 * Calculates what color the square is
 	 *
 	 * @return returns the color of the square. Can be calculates so it isn't saved.
 	 **/
-	static Color getColor() {
+	static Color getColor(int row, int col) {
 		// TODO
+		if (row % 2 == col % 2) {
+			return Color.BLACK;
+		} else {
+			return Color.WHITE;
+		}
 	}
 }
 
