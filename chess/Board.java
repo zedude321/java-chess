@@ -51,6 +51,10 @@ public class Board {
 		
 	}
 	
+	public void printBoard() {
+		
+	}
+	
 	public void turn() {
 		
 	}

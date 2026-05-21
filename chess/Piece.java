@@ -99,6 +99,7 @@ class Queen extends Piece {
 		super(square, color);
 	}
 	
+	@Override
 	public ArrayList<Square> getValidMoves() {
 		// TODO
 	}
@@ -112,6 +113,7 @@ class Bishop extends Piece {
 		super(square, color);
 	}
 	
+	@Override
 	public ArrayList<Square> getValidMoves() {
 		// TODO
 	}
@@ -125,6 +127,7 @@ class Knight extends Piece {
 		super(square, color);
 	}
 	
+	@Override
 	public ArrayList<Square> getValidMoves() {
 		// TODO
 	}
@@ -138,6 +141,7 @@ class Rook extends Piece {
 		super(square, color);
 	}
 	
+	@Override
 	public ArrayList<Square> getValidMoves() {
 		// TODO
 	}
@@ -151,6 +155,7 @@ class Pawn extends Piece {
 		super(square, color);
 	}
 	
+	@Override
 	public ArrayList<Square> getValidMoves() {
 		// TODO
 	}
@@ -173,6 +178,7 @@ class King extends Piece {
 		super(square, color);
 	}
 	
+	@Override
 	public ArrayList<Square> getValidMoves() {
 		// TODO + castling
 	}
