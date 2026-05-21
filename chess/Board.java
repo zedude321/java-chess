@@ -263,6 +263,10 @@ public class Board {
 		return true;
 	}
 	
+	public void printBoard() {
+		
+	}
+	
 	public void turn() {
 		if (currentTurn == Color.WHITE)	
 			currentTurn = Color.BLACK;
