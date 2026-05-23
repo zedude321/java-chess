@@ -1,5 +1,6 @@
 package chess;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 enum PieceType {
 	KING,
@@ -18,20 +19,18 @@ enum Color {
 /**
  * Represents a chess piece
  * 
- * @param type the type of piece it is
- * @param shortenedType the letter notation of the piece
- * @param square the square the piece is on. Useful for powered squares
  * @param color the color the piece belongs to
  * @param hasMoved important for move validation (en passant, castling)
+ * @param directions contains movement directions not used for knights and pawns
+ * @param singleMoves contains information on whether piece moves infinitely or not. Not used for pawns and knights.
  * */
 abstract class Piece {
-	protected Square square;
 	protected final Color color;
 	protected boolean hasMoved = false;
+	protected int[][] directions;
+	protected boolean singleMoves;
 	
-	
-	public Piece(Square square, Color color) {
-		this.square = square;
+	public Piece(Color color) {
 		this.color = color;
 	}
 
@@ -41,16 +40,71 @@ abstract class Piece {
 	/**
 	 * Calculates all moves regardless of legality
 	 *
-	 * @return returns a list of squares it can move to. Disregards validity
+	 * @return returns a list of squares it can move to. Disregards checks
 	 **/
-	public abstract ArrayList<Square> getValidMoves(Board board);
+    public ArrayList<Move> getValidMoves(Board board, Square square) {
+		ArrayList<Move> moves = generateMoves(board, square);
+		Iterator<Move> iterator = moves.iterator();
+
+		while (iterator.hasNext()) {
+		    Move move = iterator.next();
+		    Square curSquare = board.getSquare(move.toRank, move.toFile);
+		    
+		    if (curSquare.getPiece() == null) continue;
+
+		    if (curSquare.getPiece().getColor() == this.color) {
+		        iterator.remove();
+		    } else {
+		    	move.isCapture = true;
+		    }
+		}
+		
+		return moves;
+	}
 	/**
 	 * Calculates all attacking moves regardless of legality
 	 *
 	 * @return returns a list of squares it can attack to. Different from moves for the case of Pawns
 	 **/
-	public ArrayList<Square> getAttackingMoves(Board board) {
-		return this.getValidMoves(board);
+	public ArrayList<Move> getAttackingMap(Board board, Square square) {
+		return generateMoves(board, square);
+	}
+	/**
+	 * Generates all target moves regardless of legality or same color pieces
+	 *
+	 * @return returns a list of squares it targets.
+	 **/
+	protected ArrayList<Move> generateMoves(Board board, Square square) {
+		ArrayList<Move> targets = new ArrayList<>();
+		
+		int row = square.getRow();
+		int col = square.getCol();
+		Piece piece = square.getPiece();
+		
+		for (int[] dir : directions) {
+			int newRow = row + dir[0];
+			int newCol = col + dir[1];
+			
+			do {
+				if (!board.isInBounds(newRow, newCol)) break;
+				
+				Square targetSquare = board.getSquare(newRow, newCol);
+				Piece targetPiece = targetSquare.getPiece();
+				
+				Move move = new Move(row, col, newRow, newCol);
+				move.pieceType = piece.getPieceType();
+				
+				if (targetPiece != null) {
+					targets.add(move);
+	                break;
+	            }
+				
+				targets.add(move);
+				newRow += dir[0];
+				newCol += dir[1];
+			} while (!singleMoves);
+		}
+		return targets;
 	}
 	
 	// Setters and getters
@@ -61,15 +115,6 @@ abstract class Piece {
 	boolean getHasMoved() {
 		return this.hasMoved;
 	}
-	
-	void setSquare(Square square) {
-		this.square = square;
-	}
-	
-	Square getSquare() {
-		return this.square;
-	}
-	
 	
 	Color getColor() {
 		return this.color;
@@ -82,6 +127,7 @@ abstract class Piece {
 	 **/
 	static PieceType getTypeFromShortened(String shortened) {
 		// TODO
+		if (shortened == null) shortened = "";
 		switch(shortened) {
 		case "K": 
 			return PieceType.KING;
@@ -97,12 +143,27 @@ abstract class Piece {
 			return PieceType.PAWN;
 		}
 	}
+	static PieceType getTypeFromShortened(char shortened) {
+		// TODO
+		return getTypeFromShortened(shortened + "");
+	}
 }
 
 class Queen extends Piece {
-	
-	public Queen(Square square, Color color) {
-		super(square, color);
+	public Queen(Color color) {
+		super(color);
+		directions = new int[][] {
+			{-1, 0},
+			{1, 0},
+			{0, -1},
+			{0, 1},
+			
+			{-1, -1},
+			{-1, 1},
+			{1, -1},
+			{1, 1}
+		};
+		singleMoves = false;
 	}
 	@Override
     public PieceType getPieceType() {
@@ -113,48 +174,18 @@ class Queen extends Piece {
     public String getShortenedType() {
         return "Q";
     }
-	public ArrayList<Square> getValidMoves(Board board) {
-		// TODO
-		ArrayList<Square> validMoves = new ArrayList<>();
-		int[][] directions = {
-				{-1, 0},
-				{1, 0},
-				{0, -1},
-				{0, 1},
-				
-				{-1, -1},
-				{-1, 1},
-				{1, -1},
-				{1, 1}
-		};
-		
-		int row = square.getLocation()[0];
-		int col = square.getLocation()[1];
-		
-		for (int[] dir : directions) {
-			int newRow = row + dir[0];
-			int newCol = col + dir[1];
-			
-			while (newRow >= 0 && newRow < 8 &&
-				   newCol >= 0 && newCol < 8) {
-				Square targetSquare = board.getSquare(newRow, newCol);
-				validMoves.add(targetSquare);
-				
-				if (targetSquare.getPiece() != null) {
-					break;
-				}
-				
-				newRow += dir[0];
-				newCol += dir[1];
-			}
-		}
-		return validMoves;
-	}
 }
 
 class Bishop extends Piece {
-	public Bishop(Square square, Color color) {
-		super(square, color);
+	public Bishop(Color color) {
+		super(color);
+		directions = new int[][] {
+			{-1, -1},
+			{-1, 1},
+			{1, -1},
+			{1, 1}
+		};
+		singleMoves = false;
 	}
 	@Override
 	public PieceType getPieceType() {
@@ -165,44 +196,21 @@ class Bishop extends Piece {
 	public String getShortenedType() {
 	    return "B";
 	}
-	
-	public ArrayList<Square> getValidMoves(Board board) {
-		// TODO
-		ArrayList<Square> validMoves = new ArrayList<>();
-		int[][] directions = {
-				{-1, -1},
-				{-1, 1},
-				{1, -1},
-				{1, 1}
-		};
-		
-		int row = square.getLocation()[0];
-		int col = square.getLocation()[1];
-		
-		for (int[] dir : directions) {
-			int newRow = row + dir[0];
-			int newCol = col + dir[1];
-			
-			while (newRow >= 0 && newRow < 8 &&
-				   newCol >= 0 && newCol < 8) {
-				Square targetSquare = board.getSquare(newRow, newCol);
-				validMoves.add(targetSquare);
-				
-				if (targetSquare.getPiece() != null) {
-					break;
-				}
-				
-				newRow += dir[0];
-				newCol += dir[1];
-			}
-		}
-		return validMoves;
-	}
 }
 
 class Knight extends Piece {
-	public Knight(Square square, Color color) {
-		super(square, color);
+	public Knight(Color color) {
+		super(color);
+		directions = new int[][] {
+			{2, 1},
+			{2, -1},
+			{-2, 1},
+			{-2, -1},
+			{1, 2},
+			{1, -2},
+			{-1, 2},
+			{-1, -2}
+		};
 	}
 	@Override
 	public PieceType getPieceType() {
@@ -214,39 +222,38 @@ class Knight extends Piece {
 	    return "N";
 	}
 	
-	public ArrayList<Square> getValidMoves(Board board) {
+	@Override
+	protected ArrayList<Move> generateMoves(Board board, Square square) {
 		// TODO
-		ArrayList<Square> validMoves = new ArrayList<>();
-		int[][] offsets = {
-				{2, 1},
-				{2, -1},
-				{-2, 1},
-				{-2, -1},
-				{1, 2},
-				{1, -2},
-				{-1, 2},
-				{-1, -2}
-		};
+		ArrayList<Move> validMoves = new ArrayList<>();
 		
-		int row = square.getLocation()[0];
-		int col = square.getLocation()[1];
+		int row = square.getRow();
+		int col = square.getCol();
 		
-		for (int[] offset : offsets) {
+		for (int[] offset : directions) {
 			int newRow = row + offset[0];
 			int newCol = col + offset[1];
+			if (!board.isInBounds(newRow, newCol)) continue;
 			
-			if (newRow >= 0 && newRow < 8 &&
-				newCol >= 0 && newCol < 8) {
-				validMoves.add(board.getSquare(newRow, newCol));
-			}
+			Move move = new Move(row, col, newRow, newCol);
+			move.pieceType = this.getPieceType();
+			
+			validMoves.add(move);
 		}
 		return validMoves;
 	}
 }
 
 class Rook extends Piece {
-	public Rook(Square square, Color color) {
-		super(square, color);
+	public Rook(Color color) {
+		super(color);
+		directions = new int[][] {
+			{-1, 0},
+			{1, 0},
+			{0, -1},
+			{0, 1},
+		};
+		singleMoves = false;
 	}
 	@Override
 	public PieceType getPieceType() {
@@ -257,152 +264,158 @@ class Rook extends Piece {
 	public String getShortenedType() {
 	    return "R";
 	}
-	
-	public ArrayList<Square> getValidMoves(Board board) {
-		// TODO
-		ArrayList<Square> validMoves = new ArrayList<>();
-		int[][] directions = {
-				{-1, 0},
-				{1, 0},
-				{0, -1},
-				{0, 1},
-		};
-		
-		int row = square.getLocation()[0];
-		int col = square.getLocation()[1];
-		
-		for (int[] dir : directions) {
-			int newRow = row + dir[0];
-			int newCol = col + dir[1];
-			
-			while (newRow >= 0 && newRow < 8 &&
-				   newCol >= 0 && newCol < 8) {
-				Square targetSquare = board.getSquare(newRow, newCol);
-				validMoves.add(targetSquare);
-				
-				if (targetSquare.getPiece() != null) {
-					break;
-				}
-				
-				newRow += dir[0];
-				newCol += dir[1];
-			}
-		}
-		return validMoves;
-	}
 }
 
 class Pawn extends Piece {
-	public Pawn(Square square, Color color) {
-		super(square, color);
-	}
-	@Override
-	public PieceType getPieceType() {
-	    return PieceType.PAWN;
-	}
+    private static final int[] ATTACK_OFFSETS = {-1, 1};
 
-	@Override
-	public String getShortenedType() {
-	    return "";
-	}
-	public ArrayList<Square> getValidMoves(Board board) {
-		// TODO
-		ArrayList<Square> validMoves = new ArrayList<>();
-		int row = square.getLocation()[0];
-		int col = square.getLocation()[1];
-		
-		int direction;
-		
-		if (color == Color.WHITE) {
-			direction = -1;
-		} else {
-			direction = 1;
-		}
-		int newRow = row + direction;
-		
-		if (newRow >= 0 && newRow < 8) {
-			Square targetSquare = board.getSquare(newRow, col);
-			
-			if (targetSquare.getPiece() == null) {
-				validMoves.add(targetSquare);
-				if (!hasMoved) {
-					
-					int doubleRow = row + 2 * direction;
-					Square doubleSquare = board.getSquare(doubleRow, col);
-					if (doubleSquare.getPiece() == null) {
-						validMoves.add(doubleSquare);
-					}
-				}
-			}
-			
-			int[] diagonalCols = {col - 1, col + 1};
-			
-			for (int diagonalCol : diagonalCols) {
-				if (diagonalCol < 0 || diagonalCol >= 8 ||
-					newRow < 0 || newRow >= 8) {
-					continue;
-				}
-				Square diagonalSquare = board.getSquare(newRow, diagonalCol);
-				Piece targetPiece = diagonalSquare.getPiece();
-				
-				if (targetPiece != null && targetPiece.getColor() != color) {
-					validMoves.add(diagonalSquare);
-				}
-				if (diagonalSquare == board.getEnPassantTarget()) {
-					validMoves.add(diagonalSquare);
-				}
-			}
-		}
-		return validMoves;
-	}
-	
-	@Override
-	public ArrayList<Square> getAttackingMoves(Board board) {
-		// TODO
-		ArrayList<Square> attackingMoves = new ArrayList<>();
-		int row = square.getLocation()[0];
-		int col = square.getLocation()[1];
-		
-		int direction;
-		
-		if (color == Color.WHITE) {
-			direction = -1;
-		} else {
-			direction = 1;
-		}
-		int newRow = row + direction;
-		if (newRow >= 0 && newRow < 8) {
-			
-			int[] diagonalCols = {col - 1, col + 1};
-			
-			for (int diagonalCol : diagonalCols) {
-				if (diagonalCol < 0 || diagonalCol >= 8 ||
-					newRow < 0 || newRow >= 8) {
-					continue;
-				}
-				Square diagonalSquare = board.getSquare(newRow, diagonalCol);
-				Piece targetPiece = diagonalSquare.getPiece();
-				
-				if (targetPiece != null && targetPiece.getColor() != color) {
-					attackingMoves.add(diagonalSquare);
-				}
-				if (diagonalSquare == board.getEnPassantTarget()) {
-					attackingMoves.add(diagonalSquare);
-				}
-			}
-		}
-		return attackingMoves;
-	}
-	
-	public void promote() {
-		// TODO
-	}
+    public Pawn(Color color) {
+        super(color);
+    }
 
+    @Override
+    public PieceType getPieceType() {
+        return PieceType.PAWN;
+    }
+
+    @Override
+    public String getShortenedType() {
+        return "";
+    }
+
+    private int getDirection() {
+        return color == Color.WHITE ? -1 : 1;
+    }
+
+    private boolean isStartingRank(int row) {
+        return (color == Color.WHITE && row == 6) ||
+               (color == Color.BLACK && row == 1);
+    }
+
+    @Override
+    public ArrayList<Move> getValidMoves(Board board, Square square) {
+        ArrayList<Move> moves = new ArrayList<>();
+        int row = square.getRow();
+        int col = square.getCol();
+
+        addForwardMoves(board, moves, row, col);
+
+        addCaptureMoves(board, moves, row, col);
+
+        addEnPassantMoves(board, moves, row, col);
+
+        return moves;
+    }
+
+    private void addForwardMoves(Board board, ArrayList<Move> moves, int row, int col) {
+        int forwardRow = row + getDirection();
+        if (!board.isInBounds(forwardRow, col)) return;
+
+        Square forwardSquare = board.getSquare(forwardRow, col);
+
+        if (forwardSquare.getPiece() != null) return;
+
+        Move move = new Move(row, col, forwardRow, col);
+        move.pieceType = getPieceType();
+
+        moves.add(move);
+
+        // Double Move
+        if (!isStartingRank(row)) return;
+        int doubleRow = row + getDirection() * 2;        
+        if (!board.isInBounds(doubleRow, col)) return;
+
+        Square doubleSquare = board.getSquare(doubleRow, col);
+
+        if (doubleSquare.getPiece() != null) return;
+
+        Move doubleMove = new Move(row, col, doubleRow, col);
+        doubleMove.pieceType = getPieceType();
+        
+        moves.add(doubleMove);
+    }
+
+    private void addCaptureMoves(Board board, ArrayList<Move> moves, int row, int col) {
+        int targetRow = row + getDirection();
+        for (int offset : ATTACK_OFFSETS) {
+            int targetCol = col + offset;
+
+            if (!board.isInBounds(targetRow, targetCol)) continue;
+
+            Square targetSquare = board.getSquare(targetRow, targetCol);
+            Piece targetPiece = targetSquare.getPiece();
+
+            if (targetPiece == null || targetPiece.getColor() == this.color)continue;
+
+            Move move = new Move(row, col, targetRow, targetCol);
+            move.pieceType = getPieceType();
+            move.isCapture = true;
+
+            moves.add(move);
+        }
+    }
+
+    private void addEnPassantMoves(Board board, ArrayList<Move> moves, int row, int col) {
+        Move lastMove = board.getLastMove();
+
+        if (lastMove == null || lastMove.pieceType != PieceType.PAWN) return;
+        if (Math.abs(lastMove.fromRank - lastMove.toRank) != 2)return;
+
+        Square enemySquare = board.getSquare(lastMove.toRank, lastMove.toFile);
+
+        Piece enemyPawn = enemySquare.getPiece();
+
+        if (enemyPawn == null || enemyPawn.getColor() == this.color)return;
+        if (lastMove.toRank != row || Math.abs(lastMove.toFile - col) != 1) return;
+
+        Move move = new Move(row, col, row + getDirection(), lastMove.toFile);
+
+        move.pieceType = getPieceType();
+        move.isCapture = true;
+        move.isEnPassant = true;
+
+        moves.add(move);
+    }
+
+    @Override
+    public ArrayList<Move> getAttackingMap(Board board, Square square) {
+        ArrayList<Move> attacks = new ArrayList<>();
+
+        int row = square.getRow();
+        int col = square.getCol();
+
+        int targetRow = row + getDirection();
+
+        for (int offset : ATTACK_OFFSETS) {
+            int targetCol = col + offset;
+
+            if (!board.isInBounds(targetRow, targetCol)) continue;
+
+            Move move = new Move(row, col, targetRow, targetCol);
+
+            move.pieceType = getPieceType();
+
+            attacks.add(move);
+        }
+
+        return attacks;
+    }
 }
 
 class King extends Piece {
-	public King(Square square, Color color) {
-		super(square, color);
+	public King(Color color) {
+		super(color);
+		directions = new int[][] {
+			{-1, -1},
+			{-1, 0},
+			{-1, 1},
+			{0, -1},
+			{0, 1},
+			{1, -1},
+			{1, 0},
+			{1, 1}
+		};
+		singleMoves = true;
 	}
 	@Override
 	public PieceType getPieceType() {
@@ -413,32 +426,53 @@ class King extends Piece {
 	public String getShortenedType() {
 	    return "K";
 	}
-	public ArrayList<Square> getValidMoves(Board board) {
-		// TODO + castling
-		ArrayList<Square> validMoves = new ArrayList<>();
-		int[][] directions = {
-				{-1, -1},
-				{-1, 0},
-				{-1, 1},
-				{0, -1},
-				{0, 1},
-				{1, -1},
-				{1, 0},
-				{1, 1}
-		};
-		int row = square.getLocation()[0];
-		int col = square.getLocation()[1];
-		
-		for (int[] dir : directions) {
-			int newRow = row + dir[0];
-			int newCol = col + dir[1];
-			
-			if (newRow >= 0 && newRow < 8 &&
-				newCol >= 0 && newCol < 8) {
-				validMoves.add(board.getSquare(newRow, newCol));
-			}
-		}
-		return validMoves;
-	}
+	
+	@Override
+	public ArrayList<Move> getValidMoves(Board board, Square square) {
+	    ArrayList<Move> validMoves = super.getValidMoves(board, square);
 
+	    // Castling
+	    if (!hasMoved) {
+	        int row = square.getRow();
+	        
+	        //Short
+	        Square shortRookSquare = board.getSquare(row, 7);
+
+	        if (shortRookSquare != null && shortRookSquare.getPiece() instanceof Rook) {
+	            Piece rook = shortRookSquare.getPiece();
+	            if (!rook.getHasMoved()) {
+	                if (board.getSquare(row, 5).getPiece() == null && board.getSquare(row, 6).getPiece() == null) {
+	                    Move move = new Move(row, 4, row, 6);
+	                    move.pieceType = this.getPieceType();
+	                    move.isShortCastle = true;
+
+	                    validMoves.add(move);
+	                }
+	            }
+	        }
+
+	        // Long
+	        Square longRookSquare = board.getSquare(row, 0);
+
+	        if (longRookSquare != null && longRookSquare.getPiece() instanceof Rook) {
+	            Piece rook = longRookSquare.getPiece();
+	            
+	            if (!rook.getHasMoved()) {
+	                if (board.getSquare(row, 1).getPiece() == null &&
+	                    board.getSquare(row, 2).getPiece() == null &&
+	                    board.getSquare(row, 3).getPiece() == null
+	                   ) {
+	                    Move move = new Move(row, 4, row, 2);
+
+	                    move.pieceType = this.getPieceType();
+	                    move.isLongCastle = true;
+
+	                    validMoves.add(move);
+	                }
+	            }
+	        }
+	    }
+
+	    return validMoves;
+	}
 }

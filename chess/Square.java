@@ -6,19 +6,29 @@ package chess;
  * @param location location of the square on the board
  **/
 public class Square {
-	protected int[] location;
+	protected int row;
+	protected int col;
 	
 	protected Piece piece;
 	
 	// TODO Figure out powerups
-	
-	// Setters and getters
-	void setLocation(int[] location) {
-		this.location = location;
+	public Square(int row, int col) {
+		this.row = row;
+		this.col = col;
 	}
 	
-	int[] getLocation() {
-		return this.location;
+	// Setters and getters
+	void setLocation(int row, int col) {
+		this.row = row;
+		this.col = col;
+	}
+	
+	int getRow() {
+		return this.row;
+	}
+	
+	int getCol() {
+		return this.col;
 	}
 	
 	void setPiece(Piece piece) {
@@ -38,9 +48,9 @@ public class Square {
 	static Color getColor(int row, int col) {
 		// TODO
 		if (row % 2 == col % 2) {
-			return Color.BLACK;
-		} else {
 			return Color.WHITE;
+		} else {
+			return Color.BLACK;
 		}
 	}
 }
