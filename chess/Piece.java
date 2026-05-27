@@ -108,15 +108,15 @@ abstract class Piece {
 	}
 	
 	// Setters and getters
-	void setHasMoved(boolean newValue) {
+	public void setHasMoved(boolean newValue) {
 		this.hasMoved = newValue;
 	}
 	
-	boolean getHasMoved() {
+	public boolean getHasMoved() {
 		return this.hasMoved;
 	}
 	
-	Color getColor() {
+	public Color getColor() {
 		return this.color;
 	}
 	// Static methods
@@ -211,6 +211,7 @@ class Knight extends Piece {
 			{-1, 2},
 			{-1, -2}
 		};
+		singleMoves = true;
 	}
 	@Override
 	public PieceType getPieceType() {
