@@ -48,6 +48,11 @@ public class Game {
 			throw new InvalidMoveException("Illegal Move: King in check");
 		}
 		
+		// Check if piece landed on special square and transform it
+		if (board.isSpecialSquare(move.toRank, move.toFile)) {
+			transformPieceOnSpecialSquare(move.toRank, move.toFile, currentTurn);
+		}
+		
 		// Update move
 		board.setLastMove(move);
 		turnHistory.add(move);
@@ -127,7 +132,11 @@ public class Game {
 			for(int c = 0; c < 8; c++) {
 				char toPrint = '□';
 				if (board.getSquare(r, c).getPiece() == null) {
-					if (Square.getColor(r, c) == Color.BLACK) toPrint = '▩';
+					if (board.isSpecialSquare(r, c)) {
+						toPrint = '✦';
+					} else if (Square.getColor(r, c) == Color.BLACK) {
+						toPrint = '▩';
+					}
 				} else {
 					toPrint = __getPieceSymbol(board.getSquare(r, c).getPiece());
 				}
@@ -322,6 +331,34 @@ public class Game {
 		return promoted;
 	}
 	
+	private void transformPieceOnSpecialSquare(int row, int col, Color playerColor) {
+		Square specialSquare = board.getSquare(row, col);
+		Piece piece = specialSquare.getPiece();
+		
+		if (piece == null || piece.getPieceType() == PieceType.KING) {
+			return;
+		}
+		
+		PieceType[] possibleTypes = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT, PieceType.PAWN};
+		PieceType newType = possibleTypes[(int) (Math.random() * possibleTypes.length)];
+		
+		Piece newPiece = null;
+		switch(newType) {
+			case PieceType.QUEEN: newPiece = new Queen(piece.getColor()); break;
+			case PieceType.ROOK: newPiece = new Rook(piece.getColor()); break;
+			case PieceType.BISHOP: newPiece = new Bishop(piece.getColor()); break;
+			case PieceType.KNIGHT: newPiece = new Knight(piece.getColor()); break;
+			case PieceType.PAWN: newPiece = new Pawn(piece.getColor()); break;
+			default: break;
+		}
+		
+		if (newPiece != null) {
+			newPiece.setHasMoved(piece.getHasMoved());
+			specialSquare.setPiece(newPiece);
+			System.out.println("✦ Piece transformed to " + newType + "!");
+		}
+	}
+	
 	private boolean isSquareUnderAttack(Square square, Color color) {
 		for (int i = 0; i < 8; i++) {
 			for (int j = 0; j < 8; j++) {
@@ -388,7 +425,9 @@ public class Game {
 
 class Board {
 	public Square[][] squares;
-	private Move lastMove; 
+	private Move lastMove;
+	private int specialRow;
+	private int specialCol;
 	
 	public Board() {
         squares = new Square[8][8];
@@ -399,6 +438,11 @@ class Board {
                 squares[row][col] = new Square(row, col);
             }
         }
+        
+        // Generate random special square between rows 3-6
+        specialRow = 3 + (int) (Math.random() * 4);
+        specialCol = (int) (Math.random() * 8);
+        
         for (int col = 0; col < 8; col++) {
             getSquare(1, col).setPiece(new Pawn(Color.BLACK));
             getSquare(6, col).setPiece(new Pawn(Color.WHITE));
@@ -454,5 +498,17 @@ class Board {
 	
 	public void setLastMove(Move m) {
 		this.lastMove = m;
+	}
+	
+	public boolean isSpecialSquare(int row, int col) {
+		return row == specialRow && col == specialCol;
+	}
+	
+	public int getSpecialRow() {
+		return specialRow;
+	}
+	
+	public int getSpecialCol() {
+		return specialCol;
 	}
 }
