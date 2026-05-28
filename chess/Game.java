@@ -14,7 +14,7 @@ import java.util.Scanner;
  **/
 public class Game {
 	public Color currentTurn;
-	private Board board;
+	public Board board;
 	private ArrayList<Move> turnHistory;
 	private int halfMoveCounter;
 	private boolean isGameOver;
@@ -511,4 +511,5 @@ class Board {
 	public int getSpecialCol() {
 		return specialCol;
 	}
+
 }
