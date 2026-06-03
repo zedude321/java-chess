@@ -1,5 +1,7 @@
 package chess;
+
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Scanner;
 
 /**
@@ -11,433 +13,661 @@ import java.util.Scanner;
  * @param enPassantTarget Useful for performing and checking for en passant
  * @param halfMoveCounter Useful for checking for draws
  * @param isGameOver switches to true when game is over
- **/
+ *
+ */
 public class Game {
-	public Color currentTurn;
-	public Board board;
-	private ArrayList<Move> turnHistory;
-	private int halfMoveCounter;
-	private boolean isGameOver;
-	private final boolean DEBUG_MODE = false;
-	
-	public void initializeGame() {
-		board = new Board();
-		
-		currentTurn = Color.WHITE;
-		turnHistory = new ArrayList<>();
-		halfMoveCounter = 0;
-		isGameOver = false;
-	}
-	
-	public void applyMove(Move move) throws InvalidMoveException {
-		makeMove(move);
-		
-		if (move.isShortCastle || move.isLongCastle) {
-		    int middleFile = move.isShortCastle ? 5 : 3;
 
-		    boolean illegal = isSquareUnderAttack(board.getSquare(move.fromRank, middleFile), currentTurn);
+    public Color currentTurn;
+    public Board board;
+    private ArrayList<Move> turnHistory;
+    private int halfMoveCounter;
+    private boolean isGameOver;
+    private final boolean DEBUG_MODE = false;
+    private int randomSeed;
+    private Random random;
+    private GameState gameEndState;
 
-		    if (illegal) {
-		        undoMove(move);
-		        throw new InvalidMoveException("Illegal castle");
-		    }
-		}
-		
-		if (isInCheck(currentTurn)) {
-			undoMove(move);
-			throw new InvalidMoveException("Illegal Move: King in check");
-		}
-		
-		// Check if piece landed on special square and transform it
-		if (board.isSpecialSquare(move.toRank, move.toFile)) {
-			transformPieceOnSpecialSquare(move.toRank, move.toFile, currentTurn);
-		}
-		
-		// Update move
-		board.setLastMove(move);
-		turnHistory.add(move);
-		
-		if (move.pieceType == PieceType.PAWN || move.capturedPiece != null ) {
-			halfMoveCounter = 0;
-		} else {
-			halfMoveCounter++;
-		}
-		
-		if (currentTurn == Color.WHITE)	
-			currentTurn = Color.BLACK;
-	    else 
-	    	currentTurn = Color.WHITE;
-		
-		updateGameState();
-	}
-	
-	public boolean turn(Scanner sc) {
-		this.printBoard();
-		
-		String notation = sc.nextLine();
-		
-		if (notation.equalsIgnoreCase("exit")) {
-			sc.close();
-			return false;
-		}
-		
-		Move move = Move.parse(notation);
-		
-		if (move.isShortCastle) {
-			int row = currentTurn == Color.WHITE ? 7 : 0;
-			
-			move.fromFile = 4;
-			move.toFile = 6;
-			move.fromRank = row;
-			move.toRank = row;
-		} else if (move.isLongCastle) {
-			int row = currentTurn == Color.WHITE ? 7 : 0;
-			
-			move.fromFile = 4;
-			move.toFile = 2;
-			move.fromRank = row;
-			move.toRank = row;
-		}
-		
-		try {
-			if (isGameOver) throw new InvalidMoveException("Game is over");
-			
-			Move m = this.findSquareFromNotation(move);
-			if (m == null) throw new InvalidMoveException("Invalid move");
-			
-			move.fromFile = m.fromFile;
-			move.fromRank = m.fromRank;
-			move.isEnPassant = m.isEnPassant;
-			move.isCapture = m.isCapture;
-			move.pieceType = m.pieceType;
-			applyMove(move);
-		} catch (InvalidMoveException e) {
-			e.printStackTrace();
-		}
-		
-		return true;
-	}
-	
-	/**
-	 * Helper functions
+    /**
+     * Initializes the board, and sets every parameter to its default value
+     */
+    public void initializeGame() {
+        board = new Board();
+
+        randomSeed = (int) (Math.random() * 10000);
+        random = new Random(randomSeed);
+
+        currentTurn = Color.WHITE;
+        turnHistory = new ArrayList<>();
+        halfMoveCounter = 0;
+        isGameOver = false;
+        gameEndState = null;
+    }
+
+    /**
+     * Initializes the board from the special square coord and random seed, and
+     * sets every other parameter to its default value
+     */
+    public void initializeGame(int row, int col, int seed) {
+        board = new Board(row, col);
+
+        randomSeed = seed;
+        random = new Random(randomSeed);
+        currentTurn = Color.WHITE;
+        turnHistory = new ArrayList<>();
+        halfMoveCounter = 0;
+        isGameOver = false;
+        gameEndState = null;
+    }
+
+    /**
+     * Tries to the given move to the board, and checks legality.
+     * Adds the move to turnHistory, increments
+     * move counter and switches color.
+     * 
+     * @param move Move object received
+     * @throws InvalidMoveException If move is illegal
+     */
+    public void applyMove(Move move) throws InvalidMoveException {
+        makeMove(move);
+
+        if (move.isShortCastle || move.isLongCastle) {
+            int middleFile = move.isShortCastle ? 5 : 3;
+
+            boolean illegal = isSquareUnderAttack(board.getSquare(move.fromRank, middleFile), currentTurn);
+
+            if (illegal) {
+                undoMove(move);
+                throw new InvalidMoveException("Illegal castle");
+            }
+        }
+
+        if (isInCheck(currentTurn)) {
+            undoMove(move);
+            throw new InvalidMoveException("Illegal Move: King in check");
+        }
+
+        // Check if piece landed on special square and transform it
+        if (board.isSpecialSquare(move.toRank, move.toFile)) {
+            transformPieceOnSpecialSquare(move.toRank, move.toFile, currentTurn);
+        }
+
+        // Update move
+        board.setLastMove(move);
+        turnHistory.add(move);
+
+        if (move.pieceType == PieceType.PAWN || move.capturedPiece != null) {
+            halfMoveCounter = 0;
+        } else {
+            halfMoveCounter++;
+        }
+
+        if (currentTurn == Color.WHITE) {
+            currentTurn = Color.BLACK; 
+        } else {
+            currentTurn = Color.WHITE;
+        }
+
+        updateGameState();
+    }
+
+    /**
+     * Handles the current player's turn. Filling the move object with notation and other
+     * information
+     * @param notation
+     * @throws InvalidMoveException
+     */
+    public void turn(String notation) throws InvalidMoveException {
+        if (isGameOver) {
+            throw new InvalidMoveException("Game is over");
+        }
+        Move move = Move.parse(notation);
+
+        if (move.isShortCastle) {
+            int row = currentTurn == Color.WHITE ? 7 : 0;
+
+            move.fromFile = 4;
+            move.toFile = 6;
+            move.fromRank = row;
+            move.toRank = row;
+        } else if (move.isLongCastle) {
+            int row = currentTurn == Color.WHITE ? 7 : 0;
+
+            move.fromFile = 4;
+            move.toFile = 2;
+            move.fromRank = row;
+            move.toRank = row;
+        }
+
+        Move m = this.findSquareFromNotation(move);
+        if (m == null) {
+            throw new InvalidMoveException("Invalid move");
+        }
+
+        move.fromFile = m.fromFile;
+        move.fromRank = m.fromRank;
+        move.isEnPassant = m.isEnPassant;
+        move.isCapture = m.isCapture;
+        move.pieceType = m.pieceType;
+        applyMove(move);
+
+        if (isGameOver) {
+            System.out.println("Game over: " + gameEndState);
+        }
+    }
+
+    /**
+     * Runs the game in the terminal
+     * @param sc
+     * @return
+     */
+    public boolean run(Scanner sc) {
+        this.printBoard();
+
+        String notation = sc.nextLine();
+
+        if (notation.equalsIgnoreCase("exit")) {
+            sc.close();
+            return false;
+        }
+
+        try {
+            turn(notation);
+        } catch (InvalidMoveException e) {
+            e.printStackTrace();
+        }
+
+        return true;
+    }
+
+    /**
+     * Helper functions
+     */
+    public void printBoard() {
+        for (int r = 0; r < 8; r++) {
+            if (DEBUG_MODE) {
+                System.out.print(r + " ");
+            } else {
+                System.out.print(8 - r + " ");
+            }
+            for (int c = 0; c < 8; c++) {
+                char toPrint = '□';
+                if (board.getSquare(r, c).getPiece() == null) {
+                    if (board.isSpecialSquare(r, c)) {
+                        toPrint = '✦';
+                    } else if (Square.getColor(r, c) == Color.BLACK) {
+                        toPrint = '▩';
+                    }
+                } else {
+                    toPrint = __getPieceSymbol(board.getSquare(r, c).getPiece());
+                }
+                System.out.print(toPrint + " ");
+            }
+            System.out.println();
+        }
+        if (DEBUG_MODE) {
+            System.out.println("# 0 1 2 3 4 5 6 7");
+        } else {
+            System.out.println("# a b c d e f g h");
+        }
+    }
+
+    /**
+     * Updates the game state after a move has been applied.
+     * Checks for: Checkmate, Stalemate, 50-move rule draw
+     *
+     * Sets gameEndState and isGameOver when the game ends.
+     */
+    private void updateGameState() {
+        if (cantMove(currentTurn)) {
+            if (isInCheck(currentTurn)) {
+                // Checkmate for other player
+                if (currentTurn == Color.WHITE) {
+                    gameEndState = GameState.BLACKWIN; 
+                } else {
+                    gameEndState = GameState.WHITEWIN;
+                }
+            } else {
+                gameEndState = GameState.DRAW;
+
+            }
+            isGameOver = true;
+            return;
+        }
+        // TODO: Add Repetition checker
+        if (halfMoveCounter >= 100) {
+            isGameOver = true;
+            gameEndState = GameState.DRAW;
+            return;
+        }
+    }
+
+    /**
+     * Resolves an algebraic move into a concrete board move.
+     *
+     * Searches the board for a piece matching the move notation
+     * and returns the legal move that reaches the target square.
+     *
+     * Used after Move.parse() to determine the originating square.
+     *
+     * @param move Parsed move notation
+     * @return Fully resolved move or null if no legal move exists
+     */
+    private Move findSquareFromNotation(Move move) {
+        for (int r = 0; r < 8; r++) {
+            for (int c = 0; c < 8; c++) {
+                Piece temp = board.getSquare(r, c).getPiece();
+
+                if (temp == null) {
+                    continue;
+                }
+
+                if (temp.color != this.currentTurn) {
+                    continue;
+                }
+
+                if (temp.getPieceType() != move.pieceType) {
+                    continue;
+                }
+
+                for (Move m : temp.getValidMoves(board, board.getSquare(r, c))) {
+                    if (m.toFile == move.toFile && m.toRank == move.toRank) {
+                        if (move.fromFile >= 0 && move.fromFile != m.fromFile) {
+                            continue;
+                        }
+                        if (move.fromRank >= 0 && move.fromRank != m.fromRank) {
+                            continue;
+                        }
+                        return m;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Determines whether the player has at least one legal move.
+     *
+     * Generates all semi-legal moves and simulates the board after
+     * each one. A move is legal if the player's king is not left 
+     * in check after the simulated move.
+     *
+     * @param color Player to test
+     * @return true if at least one legal move exists
+     */
+    private boolean legalMoveExists(Color color) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece p = board.getSquare(i, j).getPiece();
+                if (p == null) {
+                    continue;
+                }
+
+                if (p.getColor() != color) {
+                    continue;
+                }
+
+                ArrayList<Move> pseudoLegalMoves = p.getValidMoves(board, board.getSquare(i, j));
+
+                for (Move m : pseudoLegalMoves) {
+                    try {
+                        makeMove(m);
+                    } catch (InvalidMoveException e) {
+                        continue;
+                    }
+
+                    if (!isInCheck(color)) {
+                        undoMove(m);
+                        return true;
+                    }
+                    undoMove(m);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Applies a move to the board.
+     *
+     * Does not check move legality.
+     * Validation is done by applyMove().
+     *
+     * @param move Move to execute
+     * @throws InvalidMoveException if move references invalid squares
+     */
+    private void makeMove(Move move) throws InvalidMoveException {
+        Square currSquare = board.getSquare(move.fromRank, move.fromFile);
+        Square destSquare = board.getSquare(move.toRank, move.toFile);
+
+        if (currSquare == null || destSquare == null) {
+            throw new InvalidMoveException("Invalid square");
+        }
+
+        Piece currPiece = currSquare.getPiece();
+
+        if (currPiece == null) {
+            throw new InvalidMoveException("Invalid move: Piece doesn't exist");
+        }
+
+        move.capturedPiece = destSquare.getPiece();
+        move.movedPiece = currPiece;
+        move.wasFirstMove = currPiece.getHasMoved();
+
+        if (move.isEnPassant) {
+            int capturedRow = currPiece.getColor() == Color.WHITE ? move.toRank + 1 : move.toRank - 1;
+
+            Square capturedSquare = board.getSquare(capturedRow, move.toFile);
+
+            move.capturedPiece = capturedSquare.getPiece();
+
+            capturedSquare.setPiece(null);
+        }
+
+        currSquare.setPiece(null);
+        destSquare.setPiece(currPiece);
+        currPiece.setHasMoved(true);
+
+        // Promotion logic
+        if (move.promotedPiece != null) {
+            destSquare.setPiece(handlePromote(move));
+        }
+
+        // Castling
+        if (move.isShortCastle) {
+            Square rookStart = board.getSquare(move.fromRank, 7);
+            Square rookEnd = board.getSquare(move.fromRank, 5);
+            Piece rook = rookStart.getPiece();
+
+            rookStart.setPiece(null);
+            rookEnd.setPiece(rook);
+            rook.setHasMoved(true);
+        }
+
+        if (move.isLongCastle) {
+            Square rookStart = board.getSquare(move.fromRank, 0);
+            Square rookEnd = board.getSquare(move.fromRank, 3);
+            Piece rook = rookStart.getPiece();
+
+            rookStart.setPiece(null);
+            rookEnd.setPiece(rook);
+            rook.setHasMoved(true);
+        }
+    }
+
+    /**
+     * Restores the board to its state before a move was executed.
+     *
+     * Used for:
+     * - Move validation
+     * - Check detection
+     * - Search/simulation
+     * 
+     * @param move Move to undo
+     */
+    private void undoMove(Move move) {
+        Square originalSquare = board.getSquare(move.fromRank, move.fromFile);
+        Square destSquare = board.getSquare(move.toRank, move.toFile);
+
+        Piece originalPiece = move.promotedPiece != null ? move.movedPiece : destSquare.getPiece();
+
+        originalSquare.setPiece(originalPiece);
+        originalPiece.setHasMoved(move.wasFirstMove);
+
+        if (move.isEnPassant) {
+            destSquare.setPiece(null);
+
+            int capturedRow = originalPiece.getColor() == Color.WHITE ? move.toRank + 1 : move.toRank - 1;
+            Square capturedSquare = board.getSquare(capturedRow, move.toFile);
+
+            capturedSquare.setPiece(move.capturedPiece);
+        } else {
+            destSquare.setPiece(move.capturedPiece);
+        }
+
+        // Castling
+        if (move.isShortCastle) {
+            Square rookStart = board.getSquare(move.fromRank, 7);
+            Square rookEnd = board.getSquare(move.fromRank, 5);
+            Piece rook = rookEnd.getPiece();
+
+            rookEnd.setPiece(null);
+            rookStart.setPiece(rook);
+            rook.setHasMoved(false);
+        }
+
+        if (move.isLongCastle) {
+            Square rookStart = board.getSquare(move.fromRank, 0);
+            Square rookEnd = board.getSquare(move.fromRank, 3);
+            Piece rook = rookEnd.getPiece();
+
+            rookEnd.setPiece(null);
+            rookStart.setPiece(rook);
+            rook.setHasMoved(false);
+        }
+    }
+
+    /**
+     * Creates the promoted piece specified by a promotion move.
+     *
+     * @param move Move containing promotion information
+     * @return Newly created promoted piece
+     */
+    private Piece handlePromote(Move move) {
+        Piece promoted;
+        switch (move.promotedPiece) {
+            case PieceType.QUEEN:
+                promoted = new Queen(move.movedPiece.color);
+                break;
+            case PieceType.ROOK:
+                promoted = new Rook(move.movedPiece.color);
+                break;
+            case PieceType.BISHOP:
+                promoted = new Bishop(move.movedPiece.color);
+                break;
+            case PieceType.KNIGHT:
+                promoted = new Knight(move.movedPiece.color);
+                break;
+            default:
+                promoted = null;
+                break;
+        }
+        return promoted;
+    }
+
+    /**
+     * Transforms a piece that lands on the special square.
+     *
+     * A random piece type is selected and replaces the original piece.
+     * Kings are excluded from transformation.
+     *
+     * The transformed piece retains its moved status.
+     *
+     * @param row Board row
+     * @param col Board column
+     * @param playerColor Color of the player who triggered the square
+     */
+    private void transformPieceOnSpecialSquare(int row, int col, Color playerColor) {
+        Square specialSquare = board.getSquare(row, col);
+        Piece piece = specialSquare.getPiece();
+
+        if (piece == null || piece.getPieceType() == PieceType.KING) {
+            return;
+        }
+
+        PieceType[] possibleTypes = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT, PieceType.PAWN};
+        PieceType newType = possibleTypes[random.nextInt(possibleTypes.length)];
+
+        Piece newPiece = null;
+        switch (newType) {
+            case PieceType.QUEEN:
+                newPiece = new Queen(piece.getColor());
+                break;
+            case PieceType.ROOK:
+                newPiece = new Rook(piece.getColor());
+                break;
+            case PieceType.BISHOP:
+                newPiece = new Bishop(piece.getColor());
+                break;
+            case PieceType.KNIGHT:
+                newPiece = new Knight(piece.getColor());
+                break;
+            case PieceType.PAWN:
+                newPiece = new Pawn(piece.getColor());
+                break;
+            default:
+                break;
+        }
+
+        if (newPiece != null) {
+            newPiece.setHasMoved(piece.getHasMoved());
+            specialSquare.setPiece(newPiece);
+            System.out.println("✦ Piece transformed to " + newType + "!");
+        }
+    }
+
+    /**
+     * Determines whether a square is currently attacked by an opponent piece.
+     *
+     * Uses each enemy piece's attack map.
+     *
+     * @param square Square to check
+     * @param color Owner of the square
+     * @return true if the square is under attack
+     */
+    private boolean isSquareUnderAttack(Square square, Color color) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece piece = board.getSquare(i, j).getPiece();
+                if (piece == null) {
+                    continue;
+                }
+                if (piece.getColor() == color) {
+                    continue;
+                }
+
+                ArrayList<Move> attackingMoves = piece.getAttackingMap(board, board.getSquare(i, j));
+
+                for (Move m : attackingMoves) {
+                    if (m.toFile == square.col && m.toRank == square.row) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    /**
+	 * Checks whether a player has any legal moves available.
+	 *
+	 * Used for checkmate and stalemate detection.
+	 *
+	 * @param color Player to test
+	 * @return true if the player cannot move
 	 */
-	
-	public void printBoard() {
-		for(int r = 0; r < 8; r++) {
-			if (DEBUG_MODE) {
-				System.out.print(r + " ");
-			} else {
-				System.out.print(8 - r + " ");
-			}
-			for(int c = 0; c < 8; c++) {
-				char toPrint = '□';
-				if (board.getSquare(r, c).getPiece() == null) {
-					if (board.isSpecialSquare(r, c)) {
-						toPrint = '✦';
-					} else if (Square.getColor(r, c) == Color.BLACK) {
-						toPrint = '▩';
-					}
-				} else {
-					toPrint = __getPieceSymbol(board.getSquare(r, c).getPiece());
-				}
-				System.out.print(toPrint + " ");
-			}
-			System.out.println();
-		}
-		if (DEBUG_MODE) {
-			System.out.println("# 0 1 2 3 4 5 6 7");
-		} else {
-			System.out.println("# a b c d e f g h");			
-		}
-	}
-	
-	private void updateGameState() {
-		if (cantMove(currentTurn)) {
-			if (isInCheck(currentTurn)) {
-				// Checkmate for other player
-			} else {
-				// Stalemate
-			}	
-			isGameOver = true;
-			return;
-		}
-		// TODO: Add Repetition checker
-		if (halfMoveCounter >= 100) {
-			isGameOver = true;
-			// Draw
-			return;
-		}
-	}
-	
-	private Move findSquareFromNotation(Move move) {
-		for(int r = 0; r < 8; r++) {
-			for(int c = 0; c < 8; c++) {
-				Piece temp = board.getSquare(r, c).getPiece();
-				
-				if (temp == null) continue;
-				
-				if (temp.color != this.currentTurn) continue;
-				
-				if (temp.getPieceType() != move.pieceType) continue;
-				
-				for(Move m : temp.getValidMoves(board, board.getSquare(r, c))) {
-					if (m.toFile == move.toFile && m.toRank == move.toRank) {
-						if (move.fromFile >= 0 && move.fromFile != m.fromFile) continue;
-						if (move.fromRank >= 0 && move.fromRank != m.fromRank) continue;
-						return m;
-					}
-				}
-			}
-		}
-		
-		return null;
-	}
-	
-	private boolean legalMoveExists(Color color) {
-		for (int i = 0; i < 8; i++) {
-			for (int j = 0; j < 8; j++) {
-				Piece p = board.getSquare(i, j).getPiece();
-				if (p == null) continue;
-				
-				if (p.getColor() != color) continue;
-				
-				ArrayList<Move> pseudoLegalMoves = p.getValidMoves(board, board.getSquare(i, j));
-				
-				for(Move m : pseudoLegalMoves) {
-					try {
-						makeMove(m);
-					} catch (InvalidMoveException e) {
-						continue;
-					}
-					
-					if (!isInCheck(color)) {
-						undoMove(m);
-						return true;
-					}
-					undoMove(m);
-				}
-			}
-		}
-		
-		return false;
-	}
-	
-	private void makeMove(Move move) throws InvalidMoveException {
-		Square currSquare = board.getSquare(move.fromRank, move.fromFile); 
-		Square destSquare = board.getSquare(move.toRank, move.toFile);
-		
-		if (currSquare == null || destSquare == null) throw new InvalidMoveException("Invalid square");
-		
-		Piece currPiece = currSquare.getPiece();
-		
-		if (currPiece == null) throw new InvalidMoveException("Invalid move: Piece doesn't exist");
-		
-		move.capturedPiece = destSquare.getPiece();
-		move.movedPiece = currPiece;
-		move.wasFirstMove = currPiece.getHasMoved();
-		
-		if (move.isEnPassant) {
-	        int capturedRow = currPiece.getColor() == Color.WHITE ? move.toRank + 1 : move.toRank - 1;
+    private boolean cantMove(Color color) {
+        return !legalMoveExists(color);
+    }
 
-	        Square capturedSquare = board.getSquare(capturedRow, move.toFile);
+    /**
+     * Determines whether the specified player's king is in check.
+     *
+     * Locates the king and checks whether its square
+     * is currently attacked by an opposing piece.
+     *
+     * @param color Player whose king is being tested
+     * @return true if the king is in check
+     */
+    private boolean isInCheck(Color color) {
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece piece = board.getSquare(i, j).getPiece();
+                if (piece == null) {
+                    continue;
+                }
+                if (piece.getColor() != color) {
+                    continue;
+                }
+                if (piece.getPieceType() == PieceType.KING) {
+                    return isSquareUnderAttack(board.getSquare(i, j), color);
+                }
+            }
+        }
+        return false;
+    }
 
-	        move.capturedPiece = capturedSquare.getPiece();
+    private char __getPieceSymbol(Piece p) {
+        switch (p.getPieceType()) {
+            case PieceType.KING:
+                return p.getColor() == Color.WHITE ? '♔' : '♚';
+            case PieceType.QUEEN:
+                return p.getColor() == Color.WHITE ? '♕' : '♛';
+            case PieceType.ROOK:
+                return p.getColor() == Color.WHITE ? '♖' : '♜';
+            case PieceType.BISHOP:
+                return p.getColor() == Color.WHITE ? '♗' : '♝';
+            case PieceType.KNIGHT:
+                return p.getColor() == Color.WHITE ? '♘' : '♞';
+            case PieceType.PAWN:
+                return p.getColor() == Color.WHITE ? '♙' : '♟';
+        }
+        return 0;
+    }
 
-	        capturedSquare.setPiece(null);
-	    }
-		
-		currSquare.setPiece(null);
-		destSquare.setPiece(currPiece);
-		currPiece.setHasMoved(true);
-		
-		// Promotion logic
-		if (move.promotedPiece != null) {
-			destSquare.setPiece(handlePromote(move));
-		}
-		
-		// Castling
-		if (move.isShortCastle) {
-		    Square rookStart = board.getSquare(move.fromRank, 7);
-		    Square rookEnd = board.getSquare(move.fromRank, 5);
-		    Piece rook = rookStart.getPiece();
+    public ArrayList<Move> getTurnHistory() {
+        return turnHistory;
+    }
 
-		    rookStart.setPiece(null);
-		    rookEnd.setPiece(rook);
-		    rook.setHasMoved(true);
-		}
+    public Board getBoard() {
+        return board;
+    }
 
-		if (move.isLongCastle) {
-		    Square rookStart = board.getSquare(move.fromRank, 0);
-		    Square rookEnd = board.getSquare(move.fromRank, 3);
-		    Piece rook = rookStart.getPiece();
+    public int getSpecialRow() {
+        return board.getSpecialRow();
+    }
 
-		    rookStart.setPiece(null);
-		    rookEnd.setPiece(rook);
-		    rook.setHasMoved(true);
-		}
-	}
-	
-	private void undoMove(Move move) {
-		Square originalSquare = board.getSquare(move.fromRank, move.fromFile); 
-		Square destSquare = board.getSquare(move.toRank, move.toFile);
-		
-		Piece originalPiece = move.promotedPiece != null ? move.movedPiece : destSquare.getPiece();
-		
-		originalSquare.setPiece(originalPiece);
-		originalPiece.setHasMoved(move.wasFirstMove);
-		
-		if (move.isEnPassant) {
-	        destSquare.setPiece(null);
+    public int getSpecialCol() {
+        return board.getSpecialCol();
+    }
 
-	        int capturedRow = originalPiece.getColor() == Color.WHITE ? move.toRank + 1 : move.toRank - 1;
-	        Square capturedSquare = board.getSquare(capturedRow, move.toFile);
+    public int getRandomSeed() {
+        return this.randomSeed;
+    }
 
-	        capturedSquare.setPiece(move.capturedPiece);
-	    } else {
-	        destSquare.setPiece(move.capturedPiece);
-	    }
-		
-		// Castling
-		if (move.isShortCastle) {
-		    Square rookStart = board.getSquare(move.fromRank, 7);
-		    Square rookEnd = board.getSquare(move.fromRank, 5);
-		    Piece rook = rookEnd.getPiece();
-
-		    rookEnd.setPiece(null);
-		    rookStart.setPiece(rook);
-		    rook.setHasMoved(false);
-		}
-
-		if (move.isLongCastle) {
-		    Square rookStart = board.getSquare(move.fromRank, 0);
-		    Square rookEnd = board.getSquare(move.fromRank, 3);
-		    Piece rook = rookEnd.getPiece();
-
-		    rookEnd.setPiece(null);
-		    rookStart.setPiece(rook);
-		    rook.setHasMoved(false);
-		}
-	}
-	
-	private Piece handlePromote(Move move) {
-		Piece promoted;
-		switch(move.promotedPiece) {
-			case PieceType.QUEEN: promoted = new Queen(move.movedPiece.color); break;
-			case PieceType.ROOK: promoted = new Rook(move.movedPiece.color); break;
-			case PieceType.BISHOP: promoted = new Bishop(move.movedPiece.color); break;
-			case PieceType.KNIGHT: promoted = new Knight(move.movedPiece.color); break;
-		default: promoted = null; break;
-		}
-		return promoted;
-	}
-	
-	private void transformPieceOnSpecialSquare(int row, int col, Color playerColor) {
-		Square specialSquare = board.getSquare(row, col);
-		Piece piece = specialSquare.getPiece();
-		
-		if (piece == null || piece.getPieceType() == PieceType.KING) {
-			return;
-		}
-		
-		PieceType[] possibleTypes = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT, PieceType.PAWN};
-		PieceType newType = possibleTypes[(int) (Math.random() * possibleTypes.length)];
-		
-		Piece newPiece = null;
-		switch(newType) {
-			case PieceType.QUEEN: newPiece = new Queen(piece.getColor()); break;
-			case PieceType.ROOK: newPiece = new Rook(piece.getColor()); break;
-			case PieceType.BISHOP: newPiece = new Bishop(piece.getColor()); break;
-			case PieceType.KNIGHT: newPiece = new Knight(piece.getColor()); break;
-			case PieceType.PAWN: newPiece = new Pawn(piece.getColor()); break;
-			default: break;
-		}
-		
-		if (newPiece != null) {
-			newPiece.setHasMoved(piece.getHasMoved());
-			specialSquare.setPiece(newPiece);
-			System.out.println("✦ Piece transformed to " + newType + "!");
-		}
-	}
-	
-	private boolean isSquareUnderAttack(Square square, Color color) {
-		for (int i = 0; i < 8; i++) {
-			for (int j = 0; j < 8; j++) {
-				Piece piece = board.getSquare(i, j).getPiece();
-				if (piece == null) {
-					continue;
-				}
-				if (piece.getColor() == color) {
-					continue;
-				}
-				
-				ArrayList<Move> attackingMoves = piece.getAttackingMap(board, board.getSquare(i, j));
-				
-				for(Move m : attackingMoves) {
-					if (m.toFile == square.col && m.toRank == square.row) {
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-	
-	private boolean cantMove(Color color) {
-		return !legalMoveExists(color);
-	}
-	
-	private boolean isInCheck(Color color) {
-		for (int i = 0; i < 8; i++) {
-			for (int j = 0; j < 8; j++) {
-				Piece piece = board.getSquare(i, j).getPiece();
-				if (piece == null) {
-					continue;
-				}
-				if (piece.getColor() != color) {
-					continue;
-				}
-				if (piece.getPieceType() == PieceType.KING) {
-					return isSquareUnderAttack(board.getSquare(i, j), color);
-				}
-			}
-		}
-		return false;
-	}
-	
-	private char __getPieceSymbol(Piece p) {
-		switch(p.getPieceType()) {
-			case PieceType.KING: 
-				return p.getColor() == Color.WHITE ? '♔' : '♚';
-			case PieceType.QUEEN:
-				return p.getColor() == Color.WHITE ? '♕' : '♛';
-			case PieceType.ROOK: 
-				return p.getColor() == Color.WHITE ? '♖' : '♜';
-			case PieceType.BISHOP: 
-				return p.getColor() == Color.WHITE ? '♗' : '♝';
-			case PieceType.KNIGHT: 
-				return p.getColor() == Color.WHITE ? '♘' : '♞';
-			case PieceType.PAWN: 
-				return p.getColor() == Color.WHITE ? '♙' : '♟';
-		}
-		return 0;
-	}
-	
-	public ArrayList<Move> getTurnHistory() {
-		return turnHistory;
-	}
-	
-	public Board getBoard() {
-		return board;
-	}
+    public GameState getGameState() {
+        return this.gameEndState;
+    }
 }
 
 class Board {
-	public Square[][] squares;
-	private Move lastMove;
-	private int specialRow;
-	private int specialCol;
-	
-	public Board() {
+
+    public Square[][] squares;
+    private Move lastMove;
+    private int specialRow;
+    private int specialCol;
+
+    public Board() {
+        initializeBoard();
+
+        // Generate random special square between rows 3-6
+        specialRow = 3 + (int) (Math.random() * 3);
+        specialCol = (int) (Math.random() * 8);
+    }
+
+    public Board(int row, int col) {
+        initializeBoard();
+
+        specialRow = row;
+        specialCol = col;
+    }
+
+    /**
+     * Initializes all squares and places pieces
+     * in the standard starting position.
+     */
+    private void initializeBoard() {
         squares = new Square[8][8];
         lastMove = null;
 
@@ -446,11 +676,7 @@ class Board {
                 squares[row][col] = new Square(row, col);
             }
         }
-        
-        // Generate random special square between rows 3-6
-        specialRow = 3 + (int) (Math.random() * 4);
-        specialCol = (int) (Math.random() * 8);
-        
+
         for (int col = 0; col < 8; col++) {
             getSquare(1, col).setPiece(new Pawn(Color.BLACK));
             getSquare(6, col).setPiece(new Pawn(Color.WHITE));
@@ -485,44 +711,44 @@ class Board {
         getSquare(0, 4).setPiece(new King(Color.BLACK));
         getSquare(7, 4).setPiece(new King(Color.WHITE));
     }
-	
-	public Square getSquare(int row, int col) {
+
+    public Square getSquare(int row, int col) {
         if (!isInBounds(row, col)) {
             return null;
         }
 
         return squares[row][col];
     }
-	
-	public boolean isInBounds(int row, int col) {
-        return row >= 0 && row < 8 &&
-               col >= 0 && col < 8;
+
+    public boolean isInBounds(int row, int col) {
+        return row >= 0 && row < 8
+                && col >= 0 && col < 8;
     }
-	
-	// Setter and getter
-	public Move getLastMove() {
-		return this.lastMove;
-	}
-	
-	public void setLastMove(Move m) {
-		this.lastMove = m;
-	}
-	
-	public boolean isSpecialSquare(int row, int col) {
-		return row == specialRow && col == specialCol;
-	}
-	
-	public int getSpecialRow() {
-		return specialRow;
-	}
-	
-	public int getSpecialCol() {
-		return specialCol;
-	}
-	
-	public void setSpecialSquare(int row, int col) {
-		this.specialRow = row;
-		this.specialCol = col;
-	}
-	
+
+    // Setter and getter
+    public Move getLastMove() {
+        return this.lastMove;
+    }
+
+    public void setLastMove(Move m) {
+        this.lastMove = m;
+    }
+
+    public boolean isSpecialSquare(int row, int col) {
+        return row == specialRow && col == specialCol;
+    }
+
+    public int getSpecialRow() {
+        return specialRow;
+    }
+
+    public int getSpecialCol() {
+        return specialCol;
+    }
+
+    public void setSpecialSquare(int row, int col) {
+        this.specialRow = row;
+        this.specialCol = col;
+    }
+
 }

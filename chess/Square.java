@@ -11,7 +11,6 @@ public class Square {
 	
 	protected Piece piece;
 	
-	// TODO Figure out powerups
 	public Square(int row, int col) {
 		this.row = row;
 		this.col = col;
@@ -55,4 +54,3 @@ public class Square {
 	}
 }
 
-// TODO Special Squares

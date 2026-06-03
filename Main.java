@@ -23,11 +23,9 @@ public class Main {
             Game game = new Game();
             game.initializeGame();
             Scanner sc = new Scanner(System.in);
-            while (game.turn(sc)) {}
+            while (game.run(sc)) {}
         } else {
-            Game game = new Game();
-            game.initializeGame();
-            SwingUtilities.invokeLater(() -> new ChessGUI(game));
+            SwingUtilities.invokeLater(() -> new ChessGUI());
         }
     }
 }
