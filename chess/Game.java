@@ -421,6 +421,14 @@ public class Game {
 		}
 		return 0;
 	}
+	
+	public ArrayList<Move> getTurnHistory() {
+		return turnHistory;
+	}
+	
+	public Board getBoard() {
+		return board;
+	}
 }
 
 class Board {
@@ -511,5 +519,10 @@ class Board {
 	public int getSpecialCol() {
 		return specialCol;
 	}
-
+	
+	public void setSpecialSquare(int row, int col) {
+		this.specialRow = row;
+		this.specialCol = col;
+	}
+	
 }

@@ -2,6 +2,9 @@ package chess;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.IOException;
+
 import javax.swing.*;
 import java.util.ArrayList;
 
@@ -26,6 +29,8 @@ public class ChessGUI extends JFrame {
 	
 	private final JButton[][] tiles = new JButton[SIZE][SIZE];
 	private final JLabel statusLabel = new JLabel("White's turn", SwingConstants.CENTER);
+	private final JButton saveButton = new JButton("Save Game");
+	private final JButton loadButton = new JButton("Load Game");
 
 	private final Game game;
 	private int[] selectedSquare = null;
@@ -71,9 +76,17 @@ public class ChessGUI extends JFrame {
 		statusLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
 		statusLabel.setPreferredSize(new Dimension(640, 40));
 		
+		saveButton.addActionListener(new SaveLoadListener("save"));
+		loadButton.addActionListener(new SaveLoadListener("load"));
+		
+		JPanel buttonPanel = new JPanel(new FlowLayout());
+		buttonPanel.add(saveButton);
+		buttonPanel.add(loadButton);
+		
 		Container c = getContentPane();
 		c.add(boardPanel, BorderLayout.CENTER);
 		c.add(statusLabel, BorderLayout.SOUTH);
+		c.add(buttonPanel, BorderLayout.NORTH);
 		
 		updateBoard();
 		
@@ -135,6 +148,51 @@ public class ChessGUI extends JFrame {
 					}
 				} else {
 					statusLabel.setText("Invalid move! " + game.currentTurn + "'s turn");
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Inner ActionListener for Save and Load button.
+	 * Opens a JFileChooser so the player can pick a .txt file.
+	 */
+	class SaveLoadListener implements ActionListener {
+		private final String action;
+		
+		public SaveLoadListener(String action) {
+			this.action = action;
+		}
+		
+		public void actionPerformed(ActionEvent e) {
+			JFileChooser fileChooser = new JFileChooser(GameFileManager.getSavesFolder());
+			fileChooser.setDialogTitle(action.equals("save") ? "Save Game" : "Load Game");
+			
+			int result = action.equals("save")
+				? fileChooser.showSaveDialog(ChessGUI.this)
+				: fileChooser.showOpenDialog(ChessGUI.this);
+
+			if (result == JFileChooser.APPROVE_OPTION) {
+				String filename = fileChooser.getSelectedFile().getAbsolutePath().trim();
+				if (!filename.endsWith(".txt")) {
+					filename += ".txt";
+				}
+				
+				try {
+					if (action.equals("save")) {
+						GameFileManager.saveGame(game, filename);
+						statusLabel.setText("Game saved!");
+					} else {
+						GameFileManager.loadGame(game, filename);
+						updateBoard();
+						updateStatus();
+						statusLabel.setText("Game loaded!");
+					}
+				} catch (IOException ex) {
+					JOptionPane.showMessageDialog(
+						ChessGUI.this, "File error: " + ex.getMessage(),
+						"Error", JOptionPane.ERROR_MESSAGE
+					);
 				}
 			}
 		}
