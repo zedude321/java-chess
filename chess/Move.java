@@ -15,15 +15,18 @@ public class Move {
 	public PieceType promotedPiece;
 	public boolean isCheckmate;
 	public boolean isCheck;
-	public int fromFile = -1;
-	public int fromRank = -1;
+	public int fromFile;
+	public int fromRank;
 	public boolean isCapture;
 	public boolean isEnPassant;
 	public boolean wasFirstMove;
 	public Piece movedPiece;
 	public Piece capturedPiece;
 
-	public Move() {}
+	public Move() {
+		fromFile = -1;
+		fromRank = -1;
+	}
 	public Move(int fromRank, int fromFile, int toRank, int toFile) {
 		this.fromFile = fromFile;
 		this.toFile = toFile;
@@ -41,6 +44,12 @@ public class Move {
             "([+#])?$"
     );
 	
+	/**
+	 * Parses algebraic chess notation to Move object.
+	 * 
+	 * @param notation algebraic chess notation
+	 * @return Move object
+	 */
 	public static Move parse(String notation) {
 
         Move move = new Move();
@@ -108,6 +117,67 @@ public class Move {
 
         return move;
     }
+	
+	/**
+	 * Turns Move object to algebraic chess notation
+	 * @return Algebraic chess notation
+	 */
+	public String toNotation() {
+	    StringBuilder sb = new StringBuilder();
+
+	    if (isShortCastle) {
+	        return "O-O";
+	    }
+
+	    if (isLongCastle) {
+	        return "O-O-O";
+	    }
+
+	    if (pieceType != null && pieceType != PieceType.PAWN) {
+	        sb.append(pieceTypeToSymbol(pieceType));
+	    }
+
+	    if (fromFile != -1) {
+	        sb.append((char) ('a' + fromFile));
+	    }
+
+	    if (fromRank != -1) {
+	        sb.append(8 - fromRank);
+	    }
+
+	    if (isCapture) {
+	        sb.append('x');
+	    }
+
+	    sb.append((char) ('a' + toFile));
+	    sb.append(8 - toRank);
+
+	    if (promotedPiece != null) {
+	        sb.append('=');
+	        sb.append(pieceTypeToSymbol(promotedPiece));
+	    }
+
+	    if (isCheckmate) {
+	        sb.append('#');
+	    } else if (isCheck) {
+	        sb.append('+');
+	    }
+
+	    return sb.toString();
+	}
+	
+	private static char pieceTypeToSymbol(PieceType type) {
+	    switch (type) {
+	        case KING:   return 'K';
+	        case QUEEN:  return 'Q';
+	        case ROOK:   return 'R';
+	        case BISHOP: return 'B';
+	        case KNIGHT: return 'N';
+	        default: throw new IllegalArgumentException(
+	            "Pawns have no symbol"
+	        );
+	    }
+	}
 	
 	private static int fileToIndex(char file) {
         return file - 'a';

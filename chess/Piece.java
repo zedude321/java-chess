@@ -11,11 +11,6 @@ enum PieceType {
 	PAWN
 }
 
-enum Color {
-	BLACK,
-	WHITE
-}
-
 /**
  * Represents a chess piece
  * 
