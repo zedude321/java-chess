@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 
@@ -26,19 +25,11 @@ public class GameFileManager {
         BufferedWriter bw = new BufferedWriter(osw);
 
         Board board = game.getBoard();
-        bw.write("SPECIAL:" + board.getSpecialRow() + "," + board.getSpecialCol());
+        bw.write("SPECIAL:" + board.getSpecialRow() + "," + board.getSpecialCol() + "," + game.getRandomSeed());
         bw.newLine();
 
         for (Move move : game.getTurnHistory()) {
-            String line = move.fromRank + ","
-                        + move.fromFile + ","
-                        + move.toRank + ","
-                        + move.toFile + ","
-                        + (move.isShortCastle ? "S" : "-") + ","
-                        + (move.isLongCastle ? "L" : "-") + ","
-                        + (move.isEnPassant ? "E" : "-") + ","
-                        + (move.promotedPiece != null ? move.promotedPiece.name() : "-");
-            bw.write(line);
+        	bw.write(move.toNotation());
             bw.newLine();
         }
 
@@ -60,27 +51,14 @@ public class GameFileManager {
             String[] parts = specialLine.substring(8).split(",");
             int row = Integer.parseInt(parts[0]);
             int col = Integer.parseInt(parts[1]);
+            int randomSeed = Integer.parseInt(parts[2]);
             game.getBoard().setSpecialSquare(row, col);
+            game.setRandomSeed(randomSeed);
         }
 
         String line;
         while ((line = br.readLine()) != null) {
-            String[] parts = line.split(",");
-
-            Move move = new Move();
-            move.fromRank       = Integer.parseInt(parts[0]);
-            move.fromFile       = Integer.parseInt(parts[1]);
-            move.toRank         = Integer.parseInt(parts[2]);
-            move.toFile         = Integer.parseInt(parts[3]);
-            move.isShortCastle  = parts[4].equals("S");
-            move.isLongCastle   = parts[5]. equals("L");
-            move.isEnPassant    = parts[6].equals("E");
-            move.promotedPiece  = parts[7].equals("-") ? null : PieceType.valueOf(parts[7]);
-
-            Square fromSquare = game.getBoard().getSquare(move.fromRank, move.fromFile);
-            if (fromSquare != null && fromSquare.getPiece() != null) {
-                move.pieceType = fromSquare.getPiece().getPieceType();
-            }
+            Move move = Move.parse(line);
 
             try {
                 game.applyMove(move);

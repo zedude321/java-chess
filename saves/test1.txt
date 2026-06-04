@@ -1,0 +1,6 @@
+SPECIAL:3,2
+d2d3
+d7d5
+Bc1f4
+e7e5
+Bf4xe5

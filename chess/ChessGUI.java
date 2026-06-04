@@ -519,7 +519,11 @@ public class ChessGUI extends JFrame {
      * it currently is.
      */
     private void updateStatus() {
-        statusLabel.setText(game.currentTurn == chess.Color.WHITE ? "White's turn" : "Black's turn");
+    	if (!multiplayer && game.getGameState() != null) {
+    		statusLabel.setText(game.getGameState().toString());
+    	} else {
+    		statusLabel.setText(game.currentTurn == chess.Color.WHITE ? "White's turn" : "Black's turn");    		
+    	}
     }
 
     /**

@@ -169,6 +169,10 @@ public class Game {
             sc.close();
             return false;
         }
+        
+        if (gameEndState != null)  {
+        	return false;
+        }
 
         try {
             turn(notation);
@@ -230,6 +234,9 @@ public class Game {
                 gameEndState = GameState.DRAW;
 
             }
+            Move m = new Move();
+            m.gamestate = gameEndState;
+            turnHistory.add(m);
             isGameOver = true;
             return;
         }
@@ -237,6 +244,9 @@ public class Game {
         if (halfMoveCounter >= 100) {
             isGameOver = true;
             gameEndState = GameState.DRAW;
+            Move m = new Move();
+            m.gamestate = gameEndState;
+            turnHistory.add(m);
             return;
         }
     }
@@ -634,6 +644,11 @@ public class Game {
 
     public int getRandomSeed() {
         return this.randomSeed;
+    }
+    
+    public void setRandomSeed(int seed) {
+    	this.randomSeed = seed;
+    	this.random = new Random(randomSeed);
     }
 
     public GameState getGameState() {

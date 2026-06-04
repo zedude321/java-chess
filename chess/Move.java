@@ -22,6 +22,7 @@ public class Move {
 	public boolean wasFirstMove;
 	public Piece movedPiece;
 	public Piece capturedPiece;
+	public GameState gamestate;
 
 	public Move() {
 		fromFile = -1;
@@ -55,6 +56,20 @@ public class Move {
         Move move = new Move();
 
         notation = notation.trim();
+        
+        // Victor
+        if (notation.equals("1-0")) {
+        	move.gamestate = GameState.WHITEWIN;
+        	return move;
+        }
+        if (notation.equals("0.5-0.5") || notation.equals(".5-.5")) {
+        	move.gamestate = GameState.DRAW;
+        	return move;
+        }
+        if (notation.equals("0-1")) {
+        	move.gamestate = GameState.BLACKWIN;
+        	return move;
+        }
 
         // Kingside castle
         if (notation.equals("O-O") || notation.equals("0-0")) {
@@ -124,6 +139,16 @@ public class Move {
 	 */
 	public String toNotation() {
 	    StringBuilder sb = new StringBuilder();
+	    
+	    if (gamestate == GameState.WHITEWIN) {
+	    	return "1-0";
+	    }
+	    if (gamestate == GameState.DRAW) {
+	    	return "0.5-0.5";
+	    }
+	    if (gamestate == GameState.BLACKWIN) {
+	    	return "0-1";
+	    }
 
 	    if (isShortCastle) {
 	        return "O-O";
