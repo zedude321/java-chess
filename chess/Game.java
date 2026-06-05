@@ -667,7 +667,7 @@ class Board {
         initializeBoard();
 
         // Generate random special square between rows 3-6
-        specialRow = 3 + (int) (Math.random() * 3);
+        specialRow = 2 + (int) (Math.random() * 3);
         specialCol = (int) (Math.random() * 8);
     }
 

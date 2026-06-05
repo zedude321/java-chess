@@ -59,7 +59,7 @@ public class GameFileManager {
         String line;
         while ((line = br.readLine()) != null) {
             Move move = Move.parse(line);
-
+            if (move.gamestate != null) break;
             try {
                 game.applyMove(move);
             } catch (InvalidMoveException e) {
